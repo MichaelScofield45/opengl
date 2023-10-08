@@ -7,16 +7,16 @@ fn errorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
     std.log.err("glfw: {}: {s}\n", .{ error_code, description });
 }
 
-const first_tri = [_]f32{
-    -0.9,  -0.5, 0.0,
-    -0.0,  -0.5, 0.0,
-    -0.45, 0.5,  0.0,
+const square_verts = [_]f32{
+    0.5, 0.5, 0.0, // top right
+    0.5, -0.5, 0.0, // bottom right
+    -0.5, -0.5, 0.0, // bottom let
+    -0.5, 0.5, 0.0, // top let
 };
 
-const second_tri = [_]f32{
-    0.0,  -0.5, 0.0,
-    0.9,  -0.5, 0.0,
-    0.45, 0.5,  0.0,
+const indices = [_]u32{
+    0, 1, 3,
+    1, 2, 3,
 };
 
 const vert_shader =
@@ -60,26 +60,23 @@ pub fn main() !void {
 
     gl.viewport(0, 0, 800, 600);
 
-    var vbos: [2]gl.Buffer = undefined;
-    gl.genBuffers(&vbos);
-    defer gl.deleteBuffers(&vbos);
+    var vbo = gl.Buffer.create();
+    defer vbo.delete();
 
-    var vaos: [2]gl.VertexArray = undefined;
-    gl.genVertexArrays(&vaos);
-    defer gl.deleteVertexArrays(&vaos);
+    var vao = gl.VertexArray.create();
+    defer vao.delete();
 
-    vaos[0].bind();
-    vbos[0].bind(.array_buffer);
-    gl.bufferData(.array_buffer, f32, &first_tri, .static_draw);
+    var ebo = gl.Buffer.create();
+    defer ebo.delete();
+
+    // Filling all data needed
+    vao.bind();
+    vbo.bind(.array_buffer);
+    gl.bufferData(.array_buffer, f32, &square_verts, .static_draw);
+    ebo.bind(.element_array_buffer);
+    gl.bufferData(.element_array_buffer, u32, &indices, .static_draw);
 
     gl.vertexAttribPointer(0, 3, .float, false, 3 * @sizeOf(f32), 0);
-    gl.enableVertexAttribArray(0);
-
-    vaos[1].bind();
-    vbos[1].bind(.array_buffer);
-    gl.bufferData(.array_buffer, f32, &second_tri, .static_draw);
-
-    gl.vertexAttribPointer(0, 3, .float, false, 0, 0);
     gl.enableVertexAttribArray(0);
 
     var vert_shader_obj = gl.Shader.create(.vertex);
@@ -115,11 +112,9 @@ pub fn main() !void {
         gl.clear(.{ .color = true });
         shader_program.use();
 
-        vaos[0].bind();
-        gl.drawArrays(.triangles, 0, 3);
-
-        vaos[1].bind();
-        gl.drawArrays(.triangles, 0, 3);
+        vao.bind();
+        gl.drawElements(.triangles, 6, .u32, 0);
+        gl.bindVertexArray(.invalid);
 
         // swap buffers
         window.swapBuffers();
