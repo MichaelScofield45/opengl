@@ -1,0 +1,14 @@
+.{
+    .name = "opengl",
+    .version = "0.0.1",
+    .dependencies = .{
+        .mach_glfw = .{
+            .url = "https://pkg.machengine.org/mach-glfw/076b3869cbfd2ccccb6a8c01e4128bb0d7977ebb.tar.gz",
+            .hash = "1220cafbb90ea86d92c07f779e8106e6f5c3d8ab4cc68ddc8d3f80bd4b6079064135",
+        },
+        .zgl = .{
+            .url = "https://github.com/ziglibs/zgl/archive/81d6990d2849ffd2d082f6ae364a03cc0162ba7e.tar.gz",
+            .hash = "122079101336f0a641542a9b474203df86f96f600acd67517318acb2a1fbe5e0b6cb",
+        },
+    },
+}
