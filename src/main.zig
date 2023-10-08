@@ -7,37 +7,14 @@ fn errorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
     std.log.err("glfw: {}: {s}\n", .{ error_code, description });
 }
 
-const square_verts = [_]f32{
-    0.5, 0.5, 0.0, // top right
-    0.5, -0.5, 0.0, // bottom right
-    -0.5, -0.5, 0.0, // bottom let
-    -0.5, 0.5, 0.0, // top let
+const verts = [_]f32{
+    -0.5, -0.5, 0.0, 1.0, 0.0, 0.0,
+    0.0,  0.5,  0.0, 0.0, 1.0, 0.0,
+    0.5,  -0.5, 0.0, 0.0, 0.0, 1.0,
 };
 
-const indices = [_]u32{
-    0, 1, 3,
-    1, 2, 3,
-};
-
-const vert_shader =
-    \\ #version 330 core
-    \\ layout (location = 0) in vec3 aPos;
-    \\ 
-    \\ void main()
-    \\ {
-    \\     gl_Position = vec4(aPos.x, aPos.y, aPos.z, 1.0);
-    \\ }
-;
-
-const frag_shader =
-    \\ #version 330 core
-    \\ out vec4 FragColor;
-    \\ 
-    \\ void main()
-    \\ {
-    \\     FragColor = vec4(1.0f, 0.5f, 0.2f, 1.0f);
-    \\ }
-;
+const vert_shader = @embedFile("./shaders/main.vert");
+const frag_shader = @embedFile("./shaders/main.frag");
 
 pub fn main() !void {
     glfw.setErrorCallback(errorCallback);
@@ -66,18 +43,18 @@ pub fn main() !void {
     var vao = gl.VertexArray.create();
     defer vao.delete();
 
-    var ebo = gl.Buffer.create();
-    defer ebo.delete();
-
     // Filling all data needed
     vao.bind();
     vbo.bind(.array_buffer);
-    gl.bufferData(.array_buffer, f32, &square_verts, .static_draw);
-    ebo.bind(.element_array_buffer);
-    gl.bufferData(.element_array_buffer, u32, &indices, .static_draw);
+    gl.bufferData(.array_buffer, f32, &verts, .static_draw);
 
-    gl.vertexAttribPointer(0, 3, .float, false, 3 * @sizeOf(f32), 0);
+    // position
+    gl.vertexAttribPointer(0, 3, .float, false, 6 * @sizeOf(f32), 0);
     gl.enableVertexAttribArray(0);
+
+    // color
+    gl.vertexAttribPointer(1, 3, .float, false, 6 * @sizeOf(f32), 3 * @sizeOf(f32));
+    gl.enableVertexAttribArray(1);
 
     var vert_shader_obj = gl.Shader.create(.vertex);
     defer vert_shader_obj.delete();
@@ -107,13 +84,22 @@ pub fn main() !void {
         if (window.getKey(.escape) == .press)
             window.setShouldClose(true);
 
+        const cursor_pos = blk: {
+            const curr_pos = window.getCursorPos();
+            break :blk .{
+                .x = @as(f32, @floatCast(curr_pos.xpos)) / 800,
+                .y = @as(f32, @floatCast(curr_pos.ypos)) / 600,
+            };
+        };
+
         // rendering
-        gl.clearColor(0.2, 0.3, 0.3, 0.1);
+        gl.clearColor(cursor_pos.x, cursor_pos.x, cursor_pos.x, 1.0);
         gl.clear(.{ .color = true });
+
         shader_program.use();
 
         vao.bind();
-        gl.drawElements(.triangles, 6, .u32, 0);
+        gl.drawArrays(.triangles, 0, 3);
         gl.bindVertexArray(.invalid);
 
         // swap buffers
