@@ -7,11 +7,20 @@ fn errorCallback(error_code: glfw.ErrorCode, description: [:0]const u8) void {
     std.log.err("glfw: {}: {s}\n", .{ error_code, description });
 }
 
-const verts = [_]f32{
+var verts = [_]f32{
+    0.5,  0.5,  0.0, 0.0, 0.0, 1.0,
+    0.5,  -0.5, 0.0, 1.0, 1.0, 0.0,
     -0.5, -0.5, 0.0, 1.0, 0.0, 0.0,
-    0.0,  0.5,  0.0, 0.0, 1.0, 0.0,
-    0.5,  -0.5, 0.0, 0.0, 0.0, 1.0,
+    -0.5, 0.5,  0.0, 0.0, 1.0, 0.0,
 };
+
+const indices = [_]u32{
+    0, 1, 3,
+    1, 2, 3,
+};
+
+const WIDTH = 800;
+const HEIGHT = 600;
 
 const vert_shader = @embedFile("./shaders/main.vert");
 const frag_shader = @embedFile("./shaders/main.frag");
@@ -25,7 +34,7 @@ pub fn main() !void {
     defer glfw.terminate();
 
     // Create our window
-    const window = glfw.Window.create(800, 600, "opengl", null, null, .{}) orelse {
+    const window = glfw.Window.create(WIDTH, HEIGHT, "opengl", null, null, .{}) orelse {
         std.log.err("failed to create GLFW window: {?s}", .{glfw.getErrorString()});
         std.process.exit(1);
     };
@@ -35,7 +44,7 @@ pub fn main() !void {
     try gl.loadExtensions(.{}, glGetProcAdress);
     window.setFramebufferSizeCallback(frameResizeCallback);
 
-    gl.viewport(0, 0, 800, 600);
+    gl.viewport(0, 0, WIDTH, HEIGHT);
 
     var vbo = gl.Buffer.create();
     defer vbo.delete();
@@ -43,10 +52,15 @@ pub fn main() !void {
     var vao = gl.VertexArray.create();
     defer vao.delete();
 
+    var ebo = gl.Buffer.create();
+    defer ebo.delete();
+
     // Filling all data needed
     vao.bind();
     vbo.bind(.array_buffer);
     gl.bufferData(.array_buffer, f32, &verts, .static_draw);
+    ebo.bind(.element_array_buffer);
+    gl.bufferData(.element_array_buffer, u32, &indices, .dynamic_draw);
 
     // position
     gl.vertexAttribPointer(0, 3, .float, false, 6 * @sizeOf(f32), 0);
@@ -84,22 +98,38 @@ pub fn main() !void {
         if (window.getKey(.escape) == .press)
             window.setShouldClose(true);
 
-        const cursor_pos = blk: {
+        const mouse = blk: {
             const curr_pos = window.getCursorPos();
             break :blk .{
-                .x = @as(f32, @floatCast(curr_pos.xpos)) / 800,
-                .y = @as(f32, @floatCast(curr_pos.ypos)) / 600,
+                .x = @as(f32, @floatCast(curr_pos.xpos)),
+                .y = @as(f32, @floatCast(curr_pos.ypos)),
             };
         };
 
+        const norm = .{
+            .x = mouse.x / WIDTH,
+            .y = mouse.y / HEIGHT,
+        };
+
+        // TODO: get the size of the rectangle right
+        const new_pos = blk: {
+            var copy = verts;
+            copy[0..][0..6][0] = -(norm.x * 2.0 - 1.0);
+            copy[6..][0..6][0] = -(norm.x * 2.0 - 1.0);
+            break :blk copy;
+        };
+
+        vbo.bind(.array_buffer);
+        gl.bufferData(.array_buffer, f32, &new_pos, .dynamic_draw);
+
         // rendering
-        gl.clearColor(cursor_pos.x, cursor_pos.x, cursor_pos.x, 1.0);
+        gl.clearColor(norm.x, norm.x, norm.x, 1.0);
         gl.clear(.{ .color = true });
 
         shader_program.use();
 
         vao.bind();
-        gl.drawArrays(.triangles, 0, 3);
+        gl.drawElements(.triangles, 6, .u32, 0);
         gl.bindVertexArray(.invalid);
 
         // swap buffers
